@@ -1,3 +1,4 @@
+import { jwtDecode } from 'jwt-decode';
 import { useRouter } from 'next/router';
 import React, { useEffect, useState } from 'react';
 
@@ -13,35 +14,49 @@ interface CompanyData {
   created_at: string;
 }
 
+interface DecodedToken {
+  exp: number; // Timestamp di scadenza del token
+}
+
 const DashboardModule: React.FC = () => {
   const router = useRouter();
 
   const [companyData, setCompanyData] = useState<CompanyData | null>(null);
   const [snackbarVisible, setSnackbarVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
-  const [snackbarType, setSnackbarType] = useState<'success' | 'error'>(
-    'success',
-  );
+  const [snackbarType] = useState<'success' | 'error'>('success');
   const [token, setToken] = useState<string | null>(null);
 
   const errorMessage = "C'è stato un problema con la tua richiesta, riprova";
 
-  const showSnackbar = (message: string, type: 'success' | 'error') => {
+  const showSnackbar = (message: string) => {
     setSnackbarMessage(message);
-    setSnackbarType(type);
     setSnackbarVisible(true);
     setTimeout(() => setSnackbarVisible(false), 3000); // Nasconde la snackbar dopo 3 secondi
   };
-
   useEffect(() => {
-    // Verifica che il codice venga eseguito solo lato client
-    const storedToken = localStorage.getItem('token');
-    if (!storedToken) {
-      router.push('/login'); // Reindirizza alla pagina di login se il token non è presente
+    if (token) {
+      try {
+        const decodedToken: DecodedToken = jwtDecode(token); // Assicurati che questa riga funzioni
+        const currentTime = Date.now() / 1000; // Ottieni il tempo attuale in secondi
+        if (decodedToken.exp < currentTime) {
+          localStorage.removeItem('token'); // Rimuovi il token
+          showSnackbar(
+            'La tua sessione è scaduta, per favore effettua nuovamente il login.',
+          );
+          router.push('/login');
+        } else {
+          const storedToken = localStorage.getItem('token');
+          setToken(storedToken);
+        }
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error('Errore nella decodifica del token:', error);
+      }
     } else {
-      setToken(storedToken);
+      router.push('/login');
     }
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     if (!token) return;
@@ -59,12 +74,12 @@ const DashboardModule: React.FC = () => {
         const data = await response.json();
         if (response.ok) {
           setCompanyData(data); // Salva i dati dell'azienda nello stato
-          showSnackbar('Dati aziendali caricati con successo!', 'success');
+          showSnackbar('Dati aziendali caricati con successo!');
         } else {
-          showSnackbar(data.message || errorMessage, 'error');
+          showSnackbar(data.message || errorMessage);
         }
       } catch (error) {
-        showSnackbar(errorMessage, 'error');
+        showSnackbar(errorMessage);
       }
     };
 

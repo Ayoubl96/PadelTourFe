@@ -1,10 +1,14 @@
-/* eslint-disable unused-imports/no-unused-vars */
+import { jwtDecode } from 'jwt-decode';
 import { useRouter } from 'next/router';
 import type { ChangeEvent, FormEvent } from 'react';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 import { Section } from '@/layout/Section';
 import { Snackbar } from '@/templates/Snackbar';
+
+interface DecodedToken {
+  exp: number; // Timestamp di scadenza del token
+}
 
 const LoginModule: React.FC = () => {
   const [login, setLogin] = useState<string>('');
@@ -24,8 +28,30 @@ const LoginModule: React.FC = () => {
   };
 
   const formData = new URLSearchParams();
-  formData.append('username', login); // inserisci il nome utente corretto
-  formData.append('password', password); // inserisci la password corretta
+  formData.append('username', login);
+  formData.append('password', password);
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      try {
+        const decodedToken: DecodedToken = jwtDecode(token); // Assicurati che questa riga funzioni
+        const currentTime = Date.now() / 1000; // Ottieni il tempo attuale in secondi
+        if (decodedToken.exp < currentTime) {
+          localStorage.removeItem('token'); // Rimuovi il token
+          showSnackbar(
+            'La tua sessione è scaduta, per favore effettua nuovamente il login.',
+          );
+          router.push('/login');
+        } else {
+          router.push('/dashboard'); // Reindirizzamento alla dashboard se il token è valido
+        }
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error('Errore nella decodifica del token:', error);
+      }
+    }
+  }, [router]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -39,9 +65,9 @@ const LoginModule: React.FC = () => {
       const data = await response.json();
       if (response.ok) {
         showSnackbar('Account creato con successo!');
-        localStorage.setItem('token', data.access_token);
+        localStorage.setItem('token', data.access_token); // Assicurati che il token includa le informazioni sulla scadenza
         setTimeout(() => {
-          router.push('/dashboard'); // Reindirizzamento alla pagina di ringraziamento
+          router.push('/dashboard'); // Reindirizzamento alla pagina di dashboard
         }, 1000);
       } else {
         showSnackbar(data.message[0].messages[0].message);
@@ -69,7 +95,7 @@ const LoginModule: React.FC = () => {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label
-                htmlFor="email"
+                htmlFor="login"
                 className="block text-sm/6 font-medium text-gray-900"
               >
                 Email address

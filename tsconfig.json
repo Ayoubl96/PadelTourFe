@@ -19,11 +19,7 @@
     "allowUnreachableCode": false,
     "noFallthroughCasesInSwitch": true,
 
-    "target": "es5",
-    "outDir": "out",
-    "declaration": true,
-    "sourceMap": true,
-
+    "target": "esnext", // Aggiornato a esnext
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "allowJs": false,
@@ -38,9 +34,9 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
-      "@/public/*": ["./public/*"]
-    }
+      "@/public/*": ["./public/*"],
+    },
   },
-  "exclude": ["./out/**/*", "./node_modules/**/*"],
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx"]
+  "exclude": ["node_modules"], // Rimosso out
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx"],
 }
