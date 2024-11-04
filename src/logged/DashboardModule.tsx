@@ -15,7 +15,8 @@ interface CompanyData {
 }
 
 interface DecodedToken {
-  exp: number; // Timestamp di scadenza del token
+  exp?: number; // Rendi 'exp' opzionale
+  // Altre proprietà del token se necessario
 }
 
 const DashboardModule: React.FC = () => {
@@ -34,26 +35,32 @@ const DashboardModule: React.FC = () => {
     setSnackbarVisible(true);
     setTimeout(() => setSnackbarVisible(false), 3000); // Nasconde la snackbar dopo 3 secondi
   };
+
   useEffect(() => {
-    if (token) {
-      try {
-        const decodedToken: DecodedToken = jwtDecode(token); // Assicurati che questa riga funzioni
-        const currentTime = Date.now() / 1000; // Ottieni il tempo attuale in secondi
-        if (decodedToken.exp < currentTime) {
-          localStorage.removeItem('token'); // Rimuovi il token
-          showSnackbar(
-            'La tua sessione è scaduta, per favore effettua nuovamente il login.',
-          );
-          router.push('/login');
-        } else {
-          const storedToken = localStorage.getItem('token');
-          setToken(storedToken);
-        }
-      } catch (error) {
-        // eslint-disable-next-line no-console
-        console.error('Errore nella decodifica del token:', error);
+    const storedToken = localStorage.getItem('token');
+
+    if (!storedToken) {
+      // Se non esiste un token, fai il redirect a /login
+      router.push('/login');
+      return;
+    }
+
+    try {
+      const decodedToken = jwtDecode<DecodedToken>(storedToken); // Decodifica il token
+      const currentTime = Date.now() / 1000; // Ottieni il tempo attuale in secondi
+
+      if (decodedToken.exp === undefined || decodedToken.exp < currentTime) {
+        // Se 'exp' non è definito o se il token è scaduto, rimuovilo e fai il redirect a /login
+        localStorage.removeItem('token');
+        showSnackbar(
+          'La tua sessione è scaduta, per favore effettua nuovamente il login.',
+        );
+        router.push('/login');
+      } else {
+        // Se il token è valido e non è scaduto, vai avanti
+        setToken(storedToken); // Imposta il token nello stato, se necessario
       }
-    } else {
+    } catch (error) {
       router.push('/login');
     }
   }, [router]);
