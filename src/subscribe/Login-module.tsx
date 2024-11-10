@@ -1,178 +1,98 @@
-import { jwtDecode } from 'jwt-decode';
+// pages/login.tsx
 import { useRouter } from 'next/router';
-import type { ChangeEvent, FormEvent } from 'react';
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 
-import { Section } from '@/layout/Section';
-import { Snackbar } from '@/templates/Snackbar';
+import { loginUser } from '../services/apiService';
+import Snackbar from '../templates/Snackbar';
+import { verifyToken } from '../utils/tokenUtils';
 
-interface DecodedToken {
-  exp: number; // Timestamp di scadenza del token
-}
-
-const LoginModule: React.FC = () => {
-  const [login, setLogin] = useState<string>('');
-  const [password, setPassword] = useState<string>('');
-
+const LoginPage: React.FC = () => {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+  const [showSnackbar, setShowSnackbar] = useState(false);
+  const [snackbarTimeout, setSnackbarTimeout] = useState<NodeJS.Timeout | null>(
+    null,
+  );
   const router = useRouter();
-
-  const [snackbarVisible, setSnackbarVisible] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState('');
-  const errorMessage =
-    "C'è stato un problema con la tua registrazione, riprova";
-
-  const showSnackbar = (message: string) => {
-    setSnackbarMessage(message);
-    setSnackbarVisible(true);
-    setTimeout(() => setSnackbarVisible(false), 3000); // Nasconde la snackbar dopo 3 secondi
-  };
-
-  const formData = new URLSearchParams();
-  formData.append('username', login);
-  formData.append('password', password);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
-      try {
-        const decodedToken: DecodedToken = jwtDecode(token); // Assicurati che questa riga funzioni
-        const currentTime = Date.now() / 1000; // Ottieni il tempo attuale in secondi
-        if (decodedToken.exp < currentTime) {
-          localStorage.removeItem('token'); // Rimuovi il token
-          showSnackbar(
-            'La tua sessione è scaduta, per favore effettua nuovamente il login.',
-          );
-          router.push('/login');
-        } else {
-          router.push('/dashboard'); // Reindirizzamento alla dashboard se il token è valido
-        }
-      } catch (error) {
-        // eslint-disable-next-line no-console
-        console.error('Errore nella decodifica del token:', error);
+      const isTokenValid = verifyToken(token);
+      if (isTokenValid) {
+        router.push('/dashboard');
+      } else {
+        localStorage.removeItem('token');
       }
     }
-  }, [router]);
+  }, []);
 
-  const handleSubmit = async (e: FormEvent) => {
+  const showErrorSnackbar = () => {
+    if (snackbarTimeout) {
+      clearTimeout(snackbarTimeout);
+    }
+
+    setShowSnackbar(true);
+    const timeout = setTimeout(() => setShowSnackbar(false), 3000);
+    setSnackbarTimeout(timeout);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const result = await loginUser(username, password);
 
-    try {
-      const response = await fetch('http://localhost:8000/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: formData.toString(),
-      });
-      const data = await response.json();
-      if (response.ok) {
-        showSnackbar('Account creato con successo!');
-        localStorage.setItem('token', data.access_token); // Assicurati che il token includa le informazioni sulla scadenza
-        setTimeout(() => {
-          router.push('/dashboard'); // Reindirizzamento alla pagina di dashboard
-        }, 1000);
-      } else {
-        showSnackbar(data.message[0].messages[0].message);
-      }
-    } catch (error) {
-      showSnackbar(errorMessage);
+    if (result.success && result.data?.access_token) {
+      // Salva il token e reindirizza alla dashboard
+      localStorage.setItem('token', result.data.access_token);
+      router.push('/dashboard');
+    } else {
+      // Mostra il messaggio di errore
+      setErrorMessage(result.error || 'Login failed');
+      showErrorSnackbar();
     }
   };
 
   return (
-    <Section>
-      <div className="flex min-h-full flex-1 flex-col justify-center px-6 py-12 lg:px-8">
-        <div className="sm:mx-auto sm:w-full sm:max-w-sm">
-          <img
-            alt="Your Company"
-            src="https://tailwindui.com/plus/img/logos/mark.svg?color=indigo&shade=600"
-            className="mx-auto h-10 w-auto"
-          />
-          <h2 className="mt-10 text-center text-2xl/9 font-bold tracking-tight text-gray-900">
-            Sign in to your account
-          </h2>
-        </div>
-
-        <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-sm">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label
-                htmlFor="login"
-                className="block text-sm/6 font-medium text-gray-900"
-              >
-                Email address
-              </label>
-              <div className="mt-2">
-                <input
-                  id="login"
-                  name="login"
-                  type="text"
-                  required
-                  autoComplete="login"
-                  value={login}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                    setLogin(e.target.value)
-                  }
-                  className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm/6"
-                />
-              </div>
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between">
-                <label
-                  htmlFor="password"
-                  className="block text-sm/6 font-medium text-gray-900"
-                >
-                  Password
-                </label>
-                <div className="text-sm">
-                  <a
-                    href="#"
-                    className="font-semibold text-indigo-600 hover:text-indigo-500"
-                  >
-                    Forgot password?
-                  </a>
-                </div>
-              </div>
-              <div className="mt-2">
-                <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  value={password}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                    setPassword(e.target.value)
-                  }
-                  required
-                  autoComplete="current-password"
-                  className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm/6"
-                />
-              </div>
-            </div>
-
-            <div>
-              <button
-                type="submit"
-                className="flex w-full justify-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm/6 font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
-              >
-                Sign in
-              </button>
-            </div>
-          </form>
-
-          <p className="mt-10 text-center text-sm/6 text-gray-500">
-            Not a member?{' '}
-            <a
-              href="#"
-              className="font-semibold text-indigo-600 hover:text-indigo-500"
-            >
-              Start a 14 day free trial
-            </a>
-          </p>
-        </div>
+    <div className="flex min-h-screen items-center justify-center bg-gray-100">
+      <div className="w-96 rounded-lg bg-white p-6 shadow-lg">
+        <h2 className="mb-4 text-center text-2xl font-bold">Login</h2>
+        <form onSubmit={handleSubmit}>
+          <div className="mb-4">
+            <label className="block text-sm font-semibold text-gray-700">
+              Username
+            </label>
+            <input
+              type="text"
+              className="mt-1 w-full rounded-lg border border-gray-300 p-2"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+            />
+          </div>
+          <div className="mb-4">
+            <label className="block text-sm font-semibold text-gray-700">
+              Password
+            </label>
+            <input
+              type="password"
+              className="mt-1 w-full rounded-lg border border-gray-300 p-2"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </div>
+          <button
+            type="submit"
+            className="w-full rounded-lg bg-blue-500 py-2 text-white"
+          >
+            Login
+          </button>
+        </form>
       </div>
-      {snackbarVisible && <Snackbar title={snackbarMessage} />}
-    </Section>
+      <Snackbar message={errorMessage} show={showSnackbar} />
+    </div>
   );
 };
 
-export { LoginModule };
+export default LoginPage;

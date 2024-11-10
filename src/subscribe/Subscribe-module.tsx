@@ -1,4 +1,3 @@
-/* eslint-disable unused-imports/no-unused-vars */
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import type { ChangeEvent, FormEvent } from 'react';
@@ -6,7 +5,7 @@ import React, { useState } from 'react';
 
 import { Section } from '@/layout/Section';
 
-import { Snackbar } from '../templates/Snackbar';
+import Snackbar from '../templates/Snackbar';
 
 const SubscribeModule: React.FC = () => {
   const [name, setName] = useState<string>('');
@@ -160,7 +159,9 @@ const SubscribeModule: React.FC = () => {
         </div>
       </div>
       {/* Snackbar component */}
-      {snackbarVisible && <Snackbar title={snackbarMessage} />}
+      {snackbarVisible && (
+        <Snackbar message={snackbarMessage} show={snackbarVisible} />
+      )}
     </Section>
   );
 };

@@ -11,7 +11,7 @@ interface Field {
   images: string[];
 }
 
-const HomePage: React.FC = () => {
+const Court: React.FC = () => {
   const [fields, setFields] = useState<Field[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -60,4 +60,4 @@ const HomePage: React.FC = () => {
   );
 };
 
-export default HomePage;
+export default Court;
